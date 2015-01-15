@@ -1,18 +1,24 @@
-# Tinyurl-wrapper
+Tinyurl-wrapper
+=============
 
-## A wrapper for [tinyurl](http://www.tinyurl.com) ##
--Based on GAE
--Programmed with Go
--A jar will be provided for different client.
+A wrapper for [tinyurl](http://www.tinyurl.com)
+-------
 
-## Param and Return ##
+*Based on GAE
+*Programmed with Go
+*A jar will be provided for different client.
 
-** Param **
-Query   |Type     |Comment
+Param and Return
+-------
+
+Param:
+
+Query   |Type       |Comment
 --------|---------|---------
 q       |string  |Original url which wanna be shorted.
 
-** Return **
+Return:
+
 Var      |Type     |Comment
 ---------|---------|---------
 status   |bool     |Success request or not(false).
@@ -22,12 +28,15 @@ result   |string   |The shorted url by [tinyurl](http://www.tinyurl.com).
 stored   |bool     |True if the result is direct from our own database instead of calling [tinyurl](http://www.tinyurl.com).
 
 
-## Example ##
+Example  
+-------
 
-**Query:**
+Query:
+
 ´´´https://tinyurl-wrapper.appspot.com/?q=http://www.online.sh.cn´´´
 
-**Return:**
+Return:
+
 ´´´
 {
   "status": true,
