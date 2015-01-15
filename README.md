@@ -33,13 +33,13 @@ Example
 
 Query:
 
-´´´json
+```
 https://tinyurl-wrapper.appspot.com/?q=http://www.online.sh.cn
-´´´
+```
 
 Return:
 
-´´´json
+```json
 {
   "status": true,
   "function": "short",
@@ -47,4 +47,4 @@ Return:
   "result": "http://tinyurl.com/4fwf4",
   "stored": false
 }
-´´´
+```
