@@ -8,6 +8,10 @@ A wrapper for [tinyurl](http://www.tinyurl.com)
 *Programmed with Go
 *A jar will be provided for different client.
 
+
+[LICENSE](https://github.com/XinyueZ/tinyurl-wrapper/blob/master/LICENSE)
+-------
+
 Param and Return
 -------
 
