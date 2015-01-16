@@ -2,41 +2,84 @@ package tinyurlwrapper
 
 import (
 	"appengine"
+	"appengine/datastore"
 	"appengine/urlfetch"
 
-
 	"fmt"
-	"net/http"
 	"io/ioutil"
+	"net/http"
 	"strconv"
+	"time"
 )
 
-func init() {
-	http.HandleFunc("/", handleShort)
+const EMPTY = ""
+
+//Domain class for database.
+type Tinyurl struct {
+	OrignalUrl string
+	Tinyurl    string
+	EditTime   int64
 }
 
-func handleShort(w http.ResponseWriter, r *http.Request) {
+func init() {
+	http.HandleFunc("/", handleMain)
+}
+
+//Main handle
+func handleMain(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
-			status(w, false, "short", "", "", false)
+			status(w, false, EMPTY, EMPTY, false)
+			cxt := appengine.NewContext(r)
+			cxt.Errorf("handleShort: %v", err)
 		}
 	}()
 
-	//cxt := appengine.NewContext(r)
+	turl := new(Tinyurl)
 
+	//Get original url.
 	args := r.URL.Query()
-	q := args[PARAM][0]
+	turl.OrignalUrl = args[PARAM][0]
 
+	//Transform to tinyurl.
 	ch := make(chan string)
-	go getTinyUrl(r, q, ch)
-	res := <-ch
+	go getTinyUrl(w, r, turl.OrignalUrl, ch)
+	turl.Tinyurl = <-ch
 
-	status(w, true, "short", q, res, false)
+	//To find a existing one
+	xh := make(chan *Tinyurl)
+	go find(w, r, turl.OrignalUrl, xh)
+	savedTinyurl := <-xh
+
+	if savedTinyurl == nil {
+		//Save in DB.
+		if editTime, err := strconv.ParseInt(time.Now().Local().Format("20060102150405"), 10, 64); err == nil {
+			turl.EditTime = editTime
+			sh := make(chan bool)
+			go save(w, r, turl, sh)
+			if <-sh {
+				status(w, true, turl.OrignalUrl, turl.Tinyurl, false)
+			}
+		} else {
+			panic(err)
+		}
+	} else {
+		status(w, true, savedTinyurl.OrignalUrl, savedTinyurl.Tinyurl, true)
+	}
 }
 
-func getTinyUrl(r *http.Request, orignalUrl string, ch chan string) {
-	tingUrl := ""
-	if orignalUrl != "" {
+//Transform an orignalUrl to Tinyurl.
+func getTinyUrl(w http.ResponseWriter, r *http.Request, orignalUrl string, ch chan string) {
+	defer func() {
+		if err := recover(); err != nil {
+			status(w, false, EMPTY, EMPTY, false)
+			cxt := appengine.NewContext(r)
+			cxt.Errorf("getTinyUrl: %v", err)
+			close(ch)
+		}
+	}()
+	tingUrl := EMPTY
+	if orignalUrl != EMPTY {
 		cxt := appengine.NewContext(r)
 		if req, err := http.NewRequest(API_METHOD, TINY+orignalUrl, nil); err == nil {
 			httpClient := urlfetch.Client(cxt)
@@ -47,29 +90,74 @@ func getTinyUrl(r *http.Request, orignalUrl string, ch chan string) {
 			if err == nil {
 				if bytes, err := ioutil.ReadAll(res.Body); err == nil {
 					tingUrl = string(bytes)
+					ch <- tingUrl
 				} else {
-					cxt.Errorf("getTinyUrl read: %v", err)
-					tingUrl = orignalUrl
+					panic(err)
 				}
 			} else {
-				cxt.Errorf("getTinyUrl doing: %v", err)
-				tingUrl = orignalUrl
+				panic(err)
 			}
 		} else {
-			cxt.Errorf("getTinyUrl: %v", err)
-			tingUrl = orignalUrl
+			panic(err)
 		}
+	} else {
+		ch <- EMPTY
 	}
-	ch <- tingUrl
 }
 
-func status(w http.ResponseWriter, ok bool, funcName string, q string, res string, stored bool) {
-	s := fmt.Sprintf(`{"status":%s, "function":"%s", "q":"%s", "result":"%s", "stored":%s }`,
-	strconv.FormatBool(ok),
-	funcName,
-	 q,
-	res,
-	strconv.FormatBool(stored))
+//Save a Tinyurl in database.
+func save(w http.ResponseWriter, r *http.Request, tinyurl *Tinyurl, ch chan bool) {
+	defer func() {
+		if err := recover(); err != nil {
+			status(w, false, EMPTY, EMPTY, false)
+			cxt := appengine.NewContext(r)
+			cxt.Errorf("find: %v", err)
+			close(ch)
+		}
+	}()
+
+	//Save in db.
+	cxt := appengine.NewContext(r)
+	if _, err := datastore.Put(cxt, datastore.NewIncompleteKey(cxt, "Tinyurl", nil), tinyurl); err == nil {
+		ch <- true
+	} else {
+		panic(err)
+	}
+}
+
+//To find an existing url that has been transformed by tinyurl before.
+//A validate Tinyurl returns back through ch, otherwise a nil.
+func find(w http.ResponseWriter, r *http.Request, url string, ch chan *Tinyurl) {
+	defer func() {
+		if err := recover(); err != nil {
+			status(w, false, EMPTY, EMPTY, false)
+			cxt := appengine.NewContext(r)
+			cxt.Errorf("find: %v", err)
+			close(ch)
+		}
+	}()
+
+	cxt := appengine.NewContext(r)
+	q := datastore.NewQuery("Tinyurl").Filter("OrignalUrl =", url)
+	turls := make([]Tinyurl, 0)
+	if _, err := q.GetAll(cxt, &turls); err == nil {
+		if len(turls) > 0 {
+			ch <- &turls[0]
+		} else {
+			ch <- nil
+		}
+	} else {
+		panic(err)
+	}
+}
+
+//Response json to browser.
+func status(w http.ResponseWriter, ok bool, q string, res string, stored bool) {
+	s := fmt.Sprintf(`{"status":%s,   "q":"%s", "result":"%s", "stored":%s }`,
+		strconv.FormatBool(ok),
+		q,
+		res,
+		strconv.FormatBool(stored))
 
 	w.Header().Set("Content-Type", API_RESTYPE)
 	fmt.Fprintf(w, s)
