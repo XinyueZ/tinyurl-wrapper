@@ -23,48 +23,62 @@ type Tinyurl struct {
 
 func init() {
 	http.HandleFunc("/", handleMain)
+	http.HandleFunc("/auto-update", handleAutoUpdate)
 }
 
-//Main handle
+//Main handler.
 func handleMain(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if err := recover(); err != nil {
 			status(w, false, EMPTY, EMPTY, false)
 			cxt := appengine.NewContext(r)
-			cxt.Errorf("handleShort: %v", err)
+			cxt.Errorf("handleMain: %v", err)
 		}
 	}()
 
-	turl := new(Tinyurl)
+	pturl := new(Tinyurl)
 
 	//Get original url.
 	args := r.URL.Query()
-	turl.OrignalUrl = args[PARAM][0]
+	pturl.OrignalUrl = args[PARAM][0]
 
-	//Transform to tinyurl.
-	ch := make(chan string)
-	go getTinyUrl(w, r, turl.OrignalUrl, ch)
-	turl.Tinyurl = <-ch
-
-	//To find a existing one
+	//To find a existing one.
 	xh := make(chan *Tinyurl)
-	go find(w, r, turl.OrignalUrl, xh)
+	go find(w, r, pturl.OrignalUrl, xh)
 	savedTinyurl := <-xh
 
 	if savedTinyurl == nil {
-		//Save in DB.
-		if editTime, err := strconv.ParseInt(time.Now().Local().Format("20060102150405"), 10, 64); err == nil {
-			turl.EditTime = editTime
-			sh := make(chan bool)
-			go save(w, r, turl, sh)
-			if <-sh {
-				status(w, true, turl.OrignalUrl, turl.Tinyurl, false)
-			}
+		build(w, r, nil, pturl)
+	} else {
+		status(w, true, savedTinyurl.OrignalUrl, savedTinyurl.Tinyurl, true)
+	}
+}
+
+//Build a Tinyurl completely.
+func build(w http.ResponseWriter, r *http.Request, pkey *datastore.Key, pturl *Tinyurl) {
+	defer func() {
+		if err := recover(); err != nil {
+			status(w, false, EMPTY, EMPTY, false)
+			cxt := appengine.NewContext(r)
+			cxt.Errorf("build: %v", err)
+		}
+	}()
+
+	//Transform to tinyurl.
+	ch := make(chan string)
+	go getTinyUrl(w, r, pturl.OrignalUrl, ch)
+	pturl.Tinyurl = <-ch
+
+	//Save in DB.
+	if editTime, err := strconv.ParseInt(time.Now().Local().Format("20060102150405"), 10, 64); err == nil {
+		pturl.EditTime = editTime
+		sh := make(chan bool)
+		go save(w, r, pkey, pturl, sh)
+		if <-sh {
+			status(w, true, pturl.OrignalUrl, pturl.Tinyurl, false)
 		} else {
 			panic(err)
 		}
-	} else {
-		status(w, true, savedTinyurl.OrignalUrl, savedTinyurl.Tinyurl, true)
 	}
 }
 
@@ -105,23 +119,31 @@ func getTinyUrl(w http.ResponseWriter, r *http.Request, orignalUrl string, ch ch
 	}
 }
 
-//Save a Tinyurl in database.
-func save(w http.ResponseWriter, r *http.Request, tinyurl *Tinyurl, ch chan bool) {
+//Save a Tinyurl in database. When pkey nil then to add new.
+func save(w http.ResponseWriter, r *http.Request, pkey *datastore.Key, tinyurl *Tinyurl, ch chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
 			status(w, false, EMPTY, EMPTY, false)
 			cxt := appengine.NewContext(r)
-			cxt.Errorf("find: %v", err)
+			cxt.Errorf("save: %v", err)
 			close(ch)
 		}
 	}()
 
 	//Save in db.
 	cxt := appengine.NewContext(r)
-	if _, err := datastore.Put(cxt, datastore.NewIncompleteKey(cxt, "Tinyurl", nil), tinyurl); err == nil {
-		ch <- true
-	} else {
-		panic(err)
+	if pkey == nil { //Add
+		if _, err := datastore.Put(cxt, datastore.NewIncompleteKey(cxt, "Tinyurl", nil), tinyurl); err == nil {
+			ch <- true
+		} else {
+			panic(err)
+		}
+	} else { //Update
+		if _, err := datastore.Put(cxt, pkey, tinyurl); err == nil {
+			ch <- true
+		} else {
+			panic(err)
+		}
 	}
 }
 
