@@ -6,6 +6,7 @@ A wrapper for [tinyurl](http://www.tinyurl.com)
 
 - Based on GAE
 - Programmed with Go
+- Backend updates transformed urls for every entity regularly and automatically.
 - A jar will be provided for different client.
 
 
@@ -25,7 +26,7 @@ Return:
 
 Var      |Type     |Comment
 ---------|---------|---------
-status   |bool     |Success request or not(false). 
+status   |bool     |Success request or not(false).
 q        |string   |Original url which wanna be shorted.
 result   |string   |The shorted url by [tinyurl](http://www.tinyurl.com).
 stored   |bool     |True if the result is direct from our own database instead of calling [tinyurl](http://www.tinyurl.com).
@@ -44,8 +45,7 @@ Return:
 
 ```json
 {
-  "status": true,
-  "function": "short",
+  "status": true, 
   "q": "http://www.online.sh.cn",
   "result": "http://tinyurl.com/4fwf4",
   "stored": false
