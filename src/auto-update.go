@@ -47,14 +47,14 @@ func update(w http.ResponseWriter, r *http.Request, tinyurls []Tinyurl) {
 	ch := make(chan int, total)
 
 	for i := 0; i < total; i++ {
-		go func(index int, pturl *Tinyurl) {
+		go func(index int, pturl *Tinyurl, ch chan int) {
 			cxt := appengine.NewContext(r)
 			q := datastore.NewQuery("Tinyurl").Filter("OrignalUrl=", pturl.OrignalUrl)
 			tinyurls := make([]Tinyurl, 0)
 			keys, _ := q.GetAll(cxt, &tinyurls)
 			build(w, r, keys[0], pturl)
 			ch <- i
-		}(i, &(tinyurls[i]))
+		}(i, &(tinyurls[i]), ch)
 	}
 
 	for i := 0; i < total; i++ {
