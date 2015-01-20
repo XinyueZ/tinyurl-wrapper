@@ -6,10 +6,11 @@ import (
 	"appengine/urlfetch"
 
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"strconv"
 	"time"
+	"regexp"
+	"strconv"
+	"net/http"
+	"io/ioutil"
 )
 
 const EMPTY = ""
@@ -94,17 +95,25 @@ func getTinyUrl(w http.ResponseWriter, r *http.Request, orignalUrl string, ch ch
 	}()
 	tingUrl := EMPTY
 	if orignalUrl != EMPTY {
-		cxt := appengine.NewContext(r)
-		if req, err := http.NewRequest(API_METHOD, TINY+orignalUrl, nil); err == nil {
-			httpClient := urlfetch.Client(cxt)
-			res, err := httpClient.Do(req)
-			if res != nil {
-				defer res.Body.Close()
-			}
-			if err == nil {
-				if bytes, err := ioutil.ReadAll(res.Body); err == nil {
-					tingUrl = string(bytes)
-					ch <- tingUrl
+		var isUrl = regexp.MustCompile(`^(http|https|ftp)\://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(:[a-zA-Z0-9]*)?/?([a-zA-Z0-9\-\._\?\,\'/\\\+&amp;%\$#\=~])*[^\.\,\)\(\s]$`)
+		if !isUrl.MatchString(orignalUrl) {
+			orignalUrl = "http://" + orignalUrl
+		}
+		if isUrl.MatchString(orignalUrl) {
+			cxt := appengine.NewContext(r)
+			if req, err := http.NewRequest(API_METHOD, TINY+orignalUrl, nil); err == nil {
+				httpClient := urlfetch.Client(cxt)
+				res, err := httpClient.Do(req)
+				if res != nil {
+					defer res.Body.Close()
+				}
+				if err == nil {
+					if bytes, err := ioutil.ReadAll(res.Body); err == nil {
+						tingUrl = string(bytes)
+						ch <- tingUrl
+					} else {
+						panic(err)
+					}
 				} else {
 					panic(err)
 				}
@@ -112,7 +121,7 @@ func getTinyUrl(w http.ResponseWriter, r *http.Request, orignalUrl string, ch ch
 				panic(err)
 			}
 		} else {
-			panic(err)
+			ch <- EMPTY
 		}
 	} else {
 		ch <- EMPTY
