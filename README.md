@@ -7,7 +7,7 @@ A wrapper for [tinyurl](http://www.tinyurl.com)
 - Based on GAE
 - Programmed with Go
 - Backend updates transformed urls for every entity regularly and automatically.
-- A jar(https://github.com/XinyueZ/tinyurl4j/tree/master/tinyurl4j/release) will be provided for different client with project tinyurl4j(https://github.com/XinyueZ/tinyurl4j).
+- A [jar](https://github.com/XinyueZ/tinyurl4j/tree/master/tinyurl4j/release) will be provided for different client with project [tinyurl4j](https://github.com/XinyueZ/tinyurl4j).
 
 
 [LICENSE](https://github.com/XinyueZ/tinyurl-wrapper/blob/master/LICENSE)
