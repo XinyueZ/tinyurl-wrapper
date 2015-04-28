@@ -6,11 +6,11 @@ import (
 	"appengine/urlfetch"
 
 	"fmt"
-	"time"
-	"regexp"
-	"strconv"
-	"net/http"
 	"io/ioutil"
+	"net/http"
+	"net/url"
+	"strconv"
+	"time"
 )
 
 const EMPTY = ""
@@ -95,13 +95,10 @@ func getTinyUrl(w http.ResponseWriter, r *http.Request, orignalUrl string, ch ch
 	}()
 	tingUrl := EMPTY
 	if orignalUrl != EMPTY {
-		var isUrl = regexp.MustCompile(`^(http|https|ftp)\://[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,3}(:[a-zA-Z0-9]*)?/?([a-zA-Z0-9\-\._\?\,\'/\\\+&amp;%\$#\=~])*[^\.\,\)\(\s]$`)
-		if !isUrl.MatchString(orignalUrl) {
-			orignalUrl = "http://" + orignalUrl
-		}
-		if isUrl.MatchString(orignalUrl) {
 			cxt := appengine.NewContext(r)
-			if req, err := http.NewRequest(API_METHOD, TINY+orignalUrl, nil); err == nil {
+			rep, _ := url.Parse(orignalUrl)
+			adr := fmt.Sprintf("%s%s", TINY, rep)
+			if req, err := http.NewRequest(API_METHOD, adr, nil); err == nil {
 				httpClient := urlfetch.Client(cxt)
 				res, err := httpClient.Do(req)
 				if res != nil {
@@ -120,15 +117,13 @@ func getTinyUrl(w http.ResponseWriter, r *http.Request, orignalUrl string, ch ch
 			} else {
 				panic(err)
 			}
-		} else {
-			ch <- EMPTY
-		}
 	} else {
 		ch <- EMPTY
 	}
 }
 
-//Save a Tinyurl in database. When pkey nil then to add new.
+
+ //Save a Tinyurl in database. When pkey nil then to add new.
 func save(w http.ResponseWriter, r *http.Request, pkey *datastore.Key, tinyurl *Tinyurl, ch chan bool) {
 	defer func() {
 		if err := recover(); err != nil {
