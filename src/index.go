@@ -33,6 +33,7 @@ func handleMain(w http.ResponseWriter, r *http.Request) {
 		if err := recover(); err != nil {
 			status(w, false, EMPTY, EMPTY, false)
 			cxt := appengine.NewContext(r)
+			w.Header().Set("Content-Type", API_RESTYPE)
 			cxt.Errorf("handleMain: %v", err)
 		}
 	}()
@@ -61,6 +62,7 @@ func build(w http.ResponseWriter, r *http.Request, pkey *datastore.Key, pturl *T
 		if err := recover(); err != nil {
 			status(w, false, EMPTY, EMPTY, false)
 			cxt := appengine.NewContext(r)
+			w.Header().Set("Content-Type", API_RESTYPE)
 			cxt.Errorf("build: %v", err)
 		}
 	}()
@@ -85,17 +87,15 @@ func build(w http.ResponseWriter, r *http.Request, pkey *datastore.Key, pturl *T
 
 //Transform an orignalUrl to Tinyurl.
 func getTinyUrl(w http.ResponseWriter, r *http.Request, orignalUrl string, ch chan string) {
+	cxt := appengine.NewContext(r)
 	defer func() {
 		if err := recover(); err != nil {
-			status(w, false, EMPTY, EMPTY, false)
-			cxt := appengine.NewContext(r)
-			cxt.Errorf("getTinyUrl: %v", err)
-			close(ch)
+			cxt.Errorf("getTinyUrl error but give channel emptry to complete.: %v", err)
+			ch <- EMPTY
 		}
 	}()
 	tingUrl := EMPTY
 	if orignalUrl != EMPTY {
-			cxt := appengine.NewContext(r)
 			rep, _ := url.Parse(orignalUrl)
 			adr := fmt.Sprintf("%s%s", TINY, rep)
 			if req, err := http.NewRequest(API_METHOD, adr, nil); err == nil {
@@ -125,17 +125,15 @@ func getTinyUrl(w http.ResponseWriter, r *http.Request, orignalUrl string, ch ch
 
  //Save a Tinyurl in database. When pkey nil then to add new.
 func save(w http.ResponseWriter, r *http.Request, pkey *datastore.Key, tinyurl *Tinyurl, ch chan bool) {
+	cxt := appengine.NewContext(r)
 	defer func() {
 		if err := recover(); err != nil {
-			status(w, false, EMPTY, EMPTY, false)
-			cxt := appengine.NewContext(r)
-			cxt.Errorf("save: %v", err)
-			close(ch)
+			cxt.Errorf("save error but still give channel a true.: %v", err)
+			ch<-true
 		}
 	}()
 
 	//Save in db.
-	cxt := appengine.NewContext(r)
 	if pkey == nil { //Add
 		if _, err := datastore.Put(cxt, datastore.NewIncompleteKey(cxt, "Tinyurl", nil), tinyurl); err == nil {
 			ch <- true
@@ -154,16 +152,13 @@ func save(w http.ResponseWriter, r *http.Request, pkey *datastore.Key, tinyurl *
 //To find an existing url that has been transformed by tinyurl before.
 //A validate Tinyurl returns back through ch, otherwise a nil.
 func find(w http.ResponseWriter, r *http.Request, url string, ch chan *Tinyurl) {
+	cxt := appengine.NewContext(r)
 	defer func() {
 		if err := recover(); err != nil {
-			status(w, false, EMPTY, EMPTY, false)
-			cxt := appengine.NewContext(r)
-			cxt.Errorf("find: %v", err)
-			close(ch)
+			cxt.Errorf("find error but still give channel a nil to complete method.: %v", err)
+			ch <- nil
 		}
 	}()
-
-	cxt := appengine.NewContext(r)
 	q := datastore.NewQuery("Tinyurl").Filter("OrignalUrl =", url)
 	turls := make([]Tinyurl, 0)
 	if _, err := q.GetAll(cxt, &turls); err == nil {
