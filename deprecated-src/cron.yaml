@@ -1,0 +1,4 @@
+cron:
+- description: Get news from Hacker-News and push to clients.
+  url: /auto-update
+  schedule: every day 00:00
