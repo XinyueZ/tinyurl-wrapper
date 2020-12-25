@@ -1,0 +1,77 @@
+buildscript {
+    ext.kotlin_version = '1.4.21'
+    ext.ktor_version = '1.5.0'
+    ext.appengine_version = '1.9.60'
+    ext.appengine_plugin_version = '2.1.0'
+    ext.gce_logback_version = '0.117.0-alpha'
+
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.google.cloud.tools:appengine-gradle-plugin:$appengine_plugin_version"
+    }
+}
+
+plugins {
+    id 'com.diffplug.spotless' version '5.7.0'
+}
+
+subprojects {
+    repositories {
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    }
+
+    apply plugin: 'com.diffplug.spotless'
+
+    spotless {
+        kotlin {
+            target '**/*.kt'
+            targetExclude("$buildDir/**/*.kt")
+            targetExclude('bin/**/*.kt')
+            ktlint("0.39.0")
+            licenseHeaderFile rootProject.file('spotless/copyright.kt')
+        }
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'kotlin'
+apply plugin: 'war'
+apply plugin: 'com.google.cloud.tools.appengine'
+
+appengine.deploy.projectId = 'tinyurl-wrapper'
+appengine.deploy.version = 'v2'
+
+sourceSets {
+    main.kotlin.srcDirs = [ 'src/main/kotlin' ]
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+compileTestKotlin {
+    kotlinOptions.jvmTarget = "1.8"
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
+
+    implementation "com.google.cloud:google-cloud-logging-logback:$gce_logback_version"
+
+    implementation "io.ktor:ktor-gson:$ktor_version"
+    implementation "io.ktor:ktor-client-cio:$ktor_version"
+    implementation "io.ktor:ktor-client-core:$ktor_version"
+    implementation "io.ktor:ktor-html-builder:$ktor_version"
+    implementation "io.ktor:ktor-client-apache:$ktor_version"
+    implementation "io.ktor:ktor-server-servlet:$ktor_version"
+
+    providedCompile "com.google.appengine:appengine:$appengine_version"
+}
+
+task run(dependsOn: appengineRun)
