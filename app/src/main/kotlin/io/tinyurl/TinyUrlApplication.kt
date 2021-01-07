@@ -37,8 +37,8 @@ private val String?.isUri: Boolean
         return if (this.isNullOrBlank()) false
         else {
             val pattern =
-                """^((((H|h)(T|t)|(F|f))(T|t)(P|p)((S|s)?))\://)?(www.|[a-zA-Z0-9].)[a-zA-Z0-9\-\.]+\.[a-zA-Z]{2,6}(\:[0-9]{1,5})*(/($|[a-zA-Z0-9\.\,\;\?\'\\\+&amp;%\$#\=~_\-]+))*$"""
-            pattern.toRegex().matches(this)
+                """^((((H|h)(T|t)|(F|f))(T|t)(P|p)((S|s)?))\://)?(.)[a-zA-Z0-9\-\.]*\.[a-zA-Z]{2,6}(\:[0-9]{1,5})*(/(${'$'}|[a-zA-Z0-9\.\,\;\?\'\\\+&amp;%\${'$'}#\=~_\-]+))*${'$'}"""
+            pattern.toRegex().matches(this.trim().toLowerCase())
         }
     }
 
@@ -60,7 +60,7 @@ fun Application.main() {
             } else {
                 call.respond(
                     HttpStatusCode.OK,
-                    vm.convert(call.request.queryParameters["q"]!!),
+                    vm.convert(call.request.queryParameters["q"]!!.trim().toLowerCase()),
                 )
             }
         }

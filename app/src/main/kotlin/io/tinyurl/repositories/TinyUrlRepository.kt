@@ -15,13 +15,10 @@ class TinyUrlRepositoryImpl(private val client: HttpClient) : TinyUrlRepository 
     override suspend fun convert(originUrl: String) = coroutineScope {
         val request =
             async { client.get<ByteArray>("http://tinyurl.com/api-create.php?url=$originUrl") }
-        val resultBytes = request.await()
-
-        client.close()
         return@coroutineScope ConvertedQuery(
             true,
             originUrl,
-            String(resultBytes),
+            String(request.await()),
             false,
         )
     }
